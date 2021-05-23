@@ -29,6 +29,9 @@ pub mod version;
 #[cfg(feature = "xml-response")]
 pub mod response;
 
+#[cfg(feature = "capi")]
+pub mod capi;
+
 pub(crate) mod error {
     pub use anyhow::{anyhow, Error, Result};
 }
