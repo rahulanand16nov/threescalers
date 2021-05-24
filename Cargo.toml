@@ -99,7 +99,7 @@ rand = "^0.8"
 # Used as the package name in the pkg-config file and defaults to the crate name.
 #name = "libfoo"
 # Used as the package description in the pkg-config file and defaults to the crate description.
-#description = "some description"
+description = "3scale API client library"
 # Used as the package version in the pkg-config file and defaults to the crate version.
 #version = "1.2.3"
 # Used as the Requires field in the pkg-config file, if defined
