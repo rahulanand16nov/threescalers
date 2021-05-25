@@ -38,6 +38,21 @@ impl From<Cow<'_, str>> for FFICow {
     }
 }
 
+impl From<FFICow> for Cow<'_, str> {
+    fn from(fc: FFICow) -> Self {
+        match fc {
+            FFICow::Borrowed(c) => {
+                let s = unsafe { std::ffi::CStr::from_ptr(c) }.to_string_lossy();
+                s
+            }
+            FFICow::Owned(o) => {
+                let s = String::from(o);
+                s.into()
+            }
+        }
+    }
+}
+
 impl From<FFIString> for FFICow {
     fn from(fs: FFIString) -> Self {
         FFICow::Owned(fs)
@@ -64,13 +79,16 @@ impl From<FFIString> for String {
 
 #[no_mangle]
 pub extern "C" fn fficow_free(c: *const FFICow) {
-    unsafe { std::ptr::read::<FFICow>(c) };
+    let cow: Cow<str> = unsafe { std::ptr::read::<FFICow>(c) }.into();
+
+    eprintln!("freeing a cow: {:?}", cow);
 }
 
 #[no_mangle]
 pub extern "C" fn encoding_encode_s(s: *const c_char) -> *const FFICow {
     let s = unsafe { CStr::from_ptr(s) };
     let s = s.to_string_lossy();
+    eprintln!("encoding {}", &s);
     let res = encoding::encode(s.as_ref());
     let cow = if let Cow::Owned(r) = res {
         FFICow::Owned(FFIString::from(r))
