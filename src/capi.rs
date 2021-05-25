@@ -9,6 +9,7 @@ use std::os::raw::{c_char, c_int};
 
 use std::borrow::Cow;
 
+#[derive(Debug)]
 #[repr(C)]
 pub struct FFIString {
     len: usize,
@@ -18,10 +19,12 @@ pub struct FFIString {
 
 impl Drop for FFIString {
     fn drop(&mut self) {
-        unsafe { String::from_raw_parts(self.ptr as *mut _, self.len, self.cap) };
+        let s = unsafe { String::from_raw_parts(self.ptr as *mut _, self.len, self.cap) };
+        eprintln!("dropping FFIString {}", &s);
     }
 }
 
+#[derive(Debug)]
 #[repr(u8, C)]
 pub enum FFICow {
     Borrowed(*const c_char),
@@ -72,6 +75,9 @@ impl From<String> for FFIString {
 
 impl From<FFIString> for String {
     fn from(fs: FFIString) -> Self {
+        // FFIString will be dropped by first converting it to an
+        // owned String so we need to ManuallyDrop it.
+        let fs = ManuallyDrop::new(fs);
         let s = unsafe { String::from_raw_parts(fs.ptr as *mut _, fs.len, fs.cap) };
         s
     }
@@ -79,9 +85,10 @@ impl From<FFIString> for String {
 
 #[no_mangle]
 pub extern "C" fn fficow_free(c: *const FFICow) {
-    let cow: Cow<str> = unsafe { std::ptr::read::<FFICow>(c) }.into();
+    //let cow: Cow<str> = unsafe { std::ptr::read::<FFICow>(c) }.into();
+    let ffi_cow = unsafe { std::ptr::read::<FFICow>(c) };
 
-    eprintln!("freeing a cow: {:?}", cow);
+    eprintln!("freeing a cow: {:?}", ffi_cow);
 }
 
 #[no_mangle]
