@@ -124,6 +124,9 @@ impl From<FFIString> for String {
 
 #[no_mangle]
 pub extern "C" fn fficow_ptr_len(c: *const FFICow, ptr: *mut *const c_char) -> usize {
+    if c.is_null() || ptr.is_null() {
+        return 0;
+    }
     let ffi_cow = unsafe { std::ptr::read::<FFICow>(c) };
     let ffi_cow = ManuallyDrop::new(ffi_cow);
 
@@ -133,6 +136,9 @@ pub extern "C" fn fficow_ptr_len(c: *const FFICow, ptr: *mut *const c_char) -> u
 
 #[no_mangle]
 pub extern "C" fn fficow_len(c: *const FFICow) -> usize {
+    if c.is_null() {
+        return 0;
+    }
     let ffi_cow = unsafe { std::ptr::read::<FFICow>(c) };
     let ffi_cow = ManuallyDrop::new(ffi_cow);
 
@@ -141,6 +147,9 @@ pub extern "C" fn fficow_len(c: *const FFICow) -> usize {
 
 #[no_mangle]
 pub extern "C" fn fficow_free(c: *const FFICow) {
+    if c.is_null() {
+        return;
+    }
     let ffi_cow = unsafe { std::ptr::read::<FFICow>(c) };
 
     eprintln!("freeing a cow: {:?}", ffi_cow);
