@@ -40,6 +40,12 @@ impl FFICow {
             Self::Borrowed(FFIStr { len, .. }) | Self::Owned(FFIString { len, .. }) => *len,
         }
     }
+
+    pub fn as_ptr(&self) -> *const c_char {
+        match self {
+            Self::Borrowed(FFIStr { ptr, .. }) | Self::Owned(FFIString { ptr, .. }) => *ptr,
+        }
+    }
 }
 
 impl From<Cow<'_, str>> for FFICow {
@@ -117,18 +123,20 @@ impl From<FFIString> for String {
 }
 
 #[no_mangle]
-pub extern "C" fn fficow_len(c: *const FFICow) -> usize {
-    eprintln!("called fficow_len: {:?}", c);
+pub extern "C" fn fficow_ptr_len(c: *const FFICow, ptr: *mut *const c_char) -> usize {
     let ffi_cow = unsafe { std::ptr::read::<FFICow>(c) };
-    eprintln!("fficow_len: {:?}", ffi_cow);
     let ffi_cow = ManuallyDrop::new(ffi_cow);
-    eprintln!("fficow computing len");
-    let len = ffi_cow.len();
-    eprintln!("fficow len: {}", len);
 
-    //let _len = len.to_ne_bytes();
-    //c_ulong::from_ne_bytes(len.to_ne_bytes())
-    len
+    unsafe { *ptr = ffi_cow.as_ptr() };
+    ffi_cow.len()
+}
+
+#[no_mangle]
+pub extern "C" fn fficow_len(c: *const FFICow) -> usize {
+    let ffi_cow = unsafe { std::ptr::read::<FFICow>(c) };
+    let ffi_cow = ManuallyDrop::new(ffi_cow);
+
+    ffi_cow.len()
 }
 
 #[no_mangle]
