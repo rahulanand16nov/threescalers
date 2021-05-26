@@ -1,7 +1,7 @@
 use core::mem::ManuallyDrop;
 use std::prelude::v1::*;
 
-use std::os::raw::{c_char, c_ulong};
+use std::os::raw::c_char;
 
 use std::borrow::Cow;
 
