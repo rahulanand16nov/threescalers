@@ -11,6 +11,13 @@ use std::borrow::Cow;
 
 #[derive(Debug)]
 #[repr(C)]
+pub struct FFIStr {
+    len: usize,
+    ptr: *const c_char,
+}
+
+#[derive(Debug)]
+#[repr(C)]
 pub struct FFIString {
     len: usize,
     cap: usize,
@@ -27,7 +34,7 @@ impl Drop for FFIString {
 #[derive(Debug)]
 #[repr(u8, C)]
 pub enum FFICow {
-    Borrowed(*const c_char),
+    Borrowed(FFIStr),
     Owned(FFIString),
 }
 
@@ -36,7 +43,7 @@ impl From<Cow<'_, str>> for FFICow {
         if let Cow::Owned(s) = c {
             FFICow::Owned(s.into())
         } else {
-            FFICow::Borrowed(c.as_ref().as_ptr() as *const _)
+            FFICow::Borrowed(c.as_ref().into())
         }
     }
 }
@@ -44,9 +51,9 @@ impl From<Cow<'_, str>> for FFICow {
 impl From<FFICow> for Cow<'_, str> {
     fn from(fc: FFICow) -> Self {
         match fc {
-            FFICow::Borrowed(c) => {
-                let s = unsafe { std::ffi::CStr::from_ptr(c) }.to_string_lossy();
-                s
+            FFICow::Borrowed(b) => {
+                let s: &str = From::from(b);
+                s.into()
             }
             FFICow::Owned(o) => {
                 let s = String::from(o);
@@ -56,9 +63,24 @@ impl From<FFICow> for Cow<'_, str> {
     }
 }
 
+impl From<FFIStr> for FFICow {
+    fn from(fs: FFIStr) -> Self {
+        FFICow::Borrowed(fs)
+    }
+}
+
 impl From<FFIString> for FFICow {
     fn from(fs: FFIString) -> Self {
         FFICow::Owned(fs)
+    }
+}
+
+impl From<&str> for FFIStr {
+    fn from(s: &str) -> Self {
+        Self {
+            len: s.len(),
+            ptr: s.as_ptr() as *const _,
+        }
     }
 }
 
@@ -70,6 +92,13 @@ impl From<String> for FFIString {
             cap: s.capacity(),
             ptr: s.as_ptr() as *const _,
         }
+    }
+}
+
+impl From<FFIStr> for &str {
+    fn from(fs: FFIStr) -> Self {
+        let s = unsafe { std::slice::from_raw_parts(fs.ptr as *const _, fs.len) };
+        unsafe { std::str::from_utf8_unchecked(s) }
     }
 }
 
@@ -102,10 +131,17 @@ pub extern "C" fn encoding_encode_s(s: *const c_char) -> *const FFICow {
     } else if let Cow::Owned(s) = s {
         FFICow::Owned(FFIString::from(s))
     } else {
-        FFICow::Borrowed(res.as_ptr() as *const _)
+        FFICow::Borrowed(FFIStr::from(res.as_ref()))
     };
+    eprintln!("retval ffi_cow {:?}", cow);
 
-    Box::into_raw(Box::new(cow)) as *const _
+    let ret = Box::new(cow);
+    eprintln!("retval box<ffi_cow> {:?}", ret);
+
+    let raw = Box::into_raw(ret);
+    eprintln!("retval box<ffi_cow>.into_raw {:?}", raw);
+
+    raw as *const _
 }
 
 #[no_mangle]
