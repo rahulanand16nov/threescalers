@@ -11,9 +11,12 @@ so-install: out/usr/lib64/libthreescalers.so
 
 .PHONY: so-clean
 so-clean:
+	-sudo rm -rf out/
+
+.PHONY: so-distclean
+so-distclean: so-clean
 	sudo rm -rf /usr/lib64/libthreescalers*
 	sudo rm -rf /usr/lib64/pkgconfig/threescalers.pc
 	-sudo rmdir /usr/lib64/pkgconfig
 	sudo rm -rf /usr/include/threescalers
 	-sudo rmdir /usr/include
-	-sudo rm -rf out/
