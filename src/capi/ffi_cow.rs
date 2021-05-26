@@ -125,12 +125,16 @@ impl From<FFIString> for String {
 #[no_mangle]
 pub extern "C" fn fficow_ptr_len(c: *const FFICow, ptr: *mut *const c_char) -> usize {
     if c.is_null() || ptr.is_null() {
+        eprintln!("fficow_ptr_len: got a NULL c: {:?}, ptr: {:?}", c, ptr);
         return 0;
     }
+    eprintln!("fficow_ptr_len: ptr: {:?}", ptr);
+
     let ffi_cow = unsafe { std::ptr::read::<FFICow>(c) };
     let ffi_cow = ManuallyDrop::new(ffi_cow);
 
     unsafe { *ptr = ffi_cow.as_ptr() };
+
     ffi_cow.len()
 }
 
