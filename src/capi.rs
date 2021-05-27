@@ -36,17 +36,32 @@ pub extern "C" fn encoding_encode_s(s: *const c_char) -> *const FFICow {
 pub extern "C" fn encoding_encode<'a>(s: *const c_char, buf: *mut c_char, len: usize) -> c_int {
     use std::convert::TryFrom;
 
+    if s.is_null() || buf.is_null() {
+        eprintln!("encoding_encode: got a NULL c: {:?}, ptr: {:?}", s, buf);
+        return 0;
+    }
+
+    eprintln!("encoding_encode: guard ok");
     let s = unsafe { CStr::from_ptr(s) };
     let s = s.to_string_lossy();
     if s.len() > len {
+        eprintln!("encoding_encode: required {}, got len {}", s.len(), len);
         return c_int::from(-1);
     }
 
+    eprintln!("encoding_encode: encoding");
     let res = encoding::encode(s.as_ref());
 
     let l = res.len();
+    eprintln!(
+        "encoding_encode: encoded (len {}/{}): {}",
+        l,
+        len,
+        res.as_ref()
+    );
 
     if l >= len {
+        eprintln!("encoding_encode: required {}, got len {}", l, len);
         return c_int::from(-1);
     }
 
@@ -61,10 +76,12 @@ pub extern "C" fn encoding_encode<'a>(s: *const c_char, buf: *mut c_char, len: u
         s.as_ptr()
     };
 
+    eprintln!("encoding_encode: copying buffer");
     unsafe {
         core::ptr::copy(newbuf, buf as *mut _, l as usize);
         *buf.offset(l) = c_char::from(0);
     }
+    eprintln!("encoding_encode: done");
 
     c_int::from(0)
 }
