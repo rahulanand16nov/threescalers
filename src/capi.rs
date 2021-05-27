@@ -33,19 +33,41 @@ pub extern "C" fn encoding_encode_s(s: *const c_char) -> *const FFICow {
 }
 
 #[no_mangle]
-pub extern "C" fn encoding_encode<'a>(s: *const c_char, buf: *mut c_char, len: usize) -> c_int {
+pub extern "C" fn encoding_encode<'a>(
+    s: *const c_char,
+    buf: *mut c_char,
+    bufcap_ptr: *mut usize,
+) -> c_int {
     use std::convert::TryFrom;
 
-    if s.is_null() || buf.is_null() {
-        eprintln!("encoding_encode: got a NULL c: {:?}, ptr: {:?}", s, buf);
+    if s.is_null() || buf.is_null() || bufcap_ptr.is_null() {
+        eprintln!(
+            "encoding_encode: got a NULL s: {:?}, buf: {:?}, bufcap_ptr: {:?}",
+            s, buf, bufcap_ptr
+        );
         return 0;
     }
 
-    eprintln!("encoding_encode: guard ok");
+    eprintln!(
+        "encoding_encode: ptrs: s: {:?}, buf: {:?}, bufcap_ptr: {:?}",
+        s, buf, bufcap_ptr
+    );
+
+    let cap = unsafe { *bufcap_ptr };
+
     let s = unsafe { CStr::from_ptr(s) };
     let s = s.to_string_lossy();
-    if s.len() > len {
-        eprintln!("encoding_encode: required {}, got len {}", s.len(), len);
+    eprintln!(
+        "encoding_encode: guard ok, bufcap {}, strlen: {}",
+        cap,
+        s.len()
+    );
+    if s.len() > cap {
+        eprintln!(
+            "encoding_encode: required {}, got buf capacity {}",
+            s.len(),
+            cap
+        );
         return c_int::from(-1);
     }
 
@@ -53,15 +75,16 @@ pub extern "C" fn encoding_encode<'a>(s: *const c_char, buf: *mut c_char, len: u
     let res = encoding::encode(s.as_ref());
 
     let l = res.len();
+    unsafe { *bufcap_ptr = l + 1 };
     eprintln!(
         "encoding_encode: encoded (len {}/{}): {}",
         l,
-        len,
+        cap,
         res.as_ref()
     );
 
-    if l >= len {
-        eprintln!("encoding_encode: required {}, got len {}", l, len);
+    if l >= cap {
+        eprintln!("encoding_encode: required {}, got capacity {}", l, cap);
         return c_int::from(-1);
     }
 
