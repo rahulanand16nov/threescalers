@@ -33,7 +33,7 @@ impl Extension<'_> {
 
         // This avoids encoding known extensions by issuing the final "encoded" form.
         match self {
-            Extension::Other(k, v) => encode(k) + "=" + encode(v),
+            Extension::Other(k, v) => encode(k.as_ref()) + "=" + encode(v.as_ref()),
             Extension::FlatUsage(value) => Cow::from("flat_usage=") + value.as_ref(),
             Extension::Hierarchy => "hierarchy=1".into(),
             Extension::NoBody => "no_body=1".into(),
@@ -49,12 +49,7 @@ impl Extension<'_> {
     pub fn to_encoded_string(&self) -> String {
         use crate::encoding::encode;
 
-        [
-            encode(self.key()),
-            "=".into(),
-            encode(self.value().as_ref()),
-        ]
-        .concat()
+        [encode(self.key()), "=".into(), encode(self.value())].concat()
     }
 }
 
