@@ -1,7 +1,7 @@
 use std::prelude::v1::*;
 
 use std::ffi::CStr;
-use std::os::raw::{c_char, c_int};
+use std::os::raw::{c_char, c_int, c_void};
 
 use std::borrow::Cow;
 
@@ -11,19 +11,71 @@ pub use ffi_cow::{FFICow, FFIStr, FFIString};
 
 use crate::encoding;
 
+enum SliceOrCStr<'a> {
+    Slice(&'a [u8]),
+    CStr(Cow<'a, str>),
+}
+
+impl<'a> SliceOrCStr<'a> {
+    pub fn new(buf: *const c_char, len: usize) -> Option<Self> {
+        if len == 0 {
+            SliceOrCStr::CStr(parse_c_str(buf)?)
+        } else {
+            SliceOrCStr::Slice(parse_buffer(buf as *const _, len)?)
+        }
+        .into()
+    }
+
+    pub fn as_cow(&self) -> Option<Cow<'a, str>> {
+        match self {
+            Self::Slice(buf) => String::from_utf8_lossy(buf).into(),
+            Self::CStr(c) => c.clone(),
+        }
+        .into()
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        match self {
+            Self::Slice(buf) => buf,
+            Self::CStr(c) => c.as_bytes(),
+        }
+    }
+}
+
+fn parse_buffer(buf: *const c_void, len: usize) -> Option<&'static [u8]> {
+    if buf.is_null() {
+        return None;
+    }
+
+    unsafe { std::slice::from_raw_parts(buf as *const _, len) }.into()
+}
+
+fn parse_buffer_mut(buf: *mut c_void, len: usize) -> Option<&'static mut [u8]> {
+    if buf.is_null() {
+        return None;
+    }
+
+    unsafe { std::slice::from_raw_parts_mut(buf as *mut _, len) }.into()
+}
+
+fn parse_c_str(s: *const c_char) -> Option<Cow<'static, str>> {
+    if s.is_null() {
+        return None;
+    }
+
+    unsafe { CStr::from_ptr(s) }.to_string_lossy().into()
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn encoding_encode_s(s: *const c_char, len: usize) -> *const FFICow {
-    if s.is_null() {
+    let slice_or_cstr = if let Some(slice_or_cstr) = SliceOrCStr::new(s, len) {
+        slice_or_cstr
+    } else {
         eprintln!("encoding_encode: got a NULL s: {:?}", s);
         return core::ptr::null();
-    }
-    let cow = if len == 0 {
-        let s = unsafe { CStr::from_ptr(s) }.to_string_lossy();
-        encoding::encode(s.as_ref()).into()
-    } else {
-        let s = unsafe { std::slice::from_raw_parts_mut(s as *mut _, len) };
-        encoding::encode(s).into()
     };
+
+    let cow = encoding::encode(slice_or_cstr.as_bytes());
 
     eprintln!("retval ffi_cow {:?}", cow);
 
@@ -31,58 +83,70 @@ pub unsafe extern "C" fn encoding_encode_s(s: *const c_char, len: usize) -> *con
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn encoding_encode<'a>(
+pub unsafe extern "C" fn encoding_encode(
     s: *const c_char,
+    len: usize,
     buf: *mut c_char,
     bufcap_ptr: *mut usize,
 ) -> c_int {
     use std::convert::TryFrom;
 
-    if s.is_null() || buf.is_null() || bufcap_ptr.is_null() {
+    if buf.is_null() || bufcap_ptr.is_null() {
         eprintln!(
-            "encoding_encode: got a NULL s: {:?}, buf: {:?}, bufcap_ptr: {:?}",
-            s, buf, bufcap_ptr
+            "encoding_encode: got a NULL buf: {:?}, bufcap_ptr: {:?}",
+            buf, bufcap_ptr,
         );
         return c_int::from(-1);
     }
 
-    eprintln!(
-        "encoding_encode: ptrs: s: {:?}, buf: {:?}, bufcap_ptr: {:?}",
-        s, buf, bufcap_ptr
-    );
+    let slice_or_cstr = if let Some(slice_or_cstr) = SliceOrCStr::new(s, len) {
+        slice_or_cstr
+    } else {
+        eprintln!("encoding_encode: got a NULL s: {:?}", s);
+        return c_int::from(-1);
+    };
+
+    //eprintln!(
+    //    "encoding_encode: ptrs: s: {:?}, len: {}, buf: {:?}, bufcap_ptr: {:?}",
+    //    s, len, buf, bufcap_ptr
+    //);
 
     let cap = unsafe { *bufcap_ptr };
 
-    let s = unsafe { std::slice::from_raw_parts_mut(buf as *mut _, *bufcap_ptr) };
+    let buffer = unsafe { std::slice::from_raw_parts_mut(buf as *mut _, cap) };
+
+    let bytes = slice_or_cstr.as_bytes();
+    let min_len = bytes.len();
 
     eprintln!(
-        "encoding_encode: guard ok, bufcap {}, strlen: {}",
+        "encoding_encode: guard ok, bufcap {}/{}, slen {}",
         cap,
-        s.len()
+        buffer.len(),
+        min_len
     );
-    if s.len() > cap {
+
+    if min_len > cap {
         eprintln!(
-            "encoding_encode: required {}, got buf capacity {}",
-            s.len(),
-            cap
+            "encoding_encode: required at least {}, got buffer capacity {}",
+            min_len, cap
         );
         return c_int::from(-1);
     }
 
     eprintln!("encoding_encode: encoding");
-    let res = encoding::encode(s);
+    let cow = encoding::encode(bytes);
 
-    let l = res.len();
+    let l = cow.len();
     unsafe { *bufcap_ptr = l + 1 };
     eprintln!(
         "encoding_encode: encoded (len {}/{}): {}",
         l,
         cap,
-        res.as_ref()
+        cow.as_ref(),
     );
 
     if l >= cap {
-        eprintln!("encoding_encode: required {}, got capacity {}", l, cap);
+        eprintln!("encoding_encode: required {}, got capacity {}", l + 1, cap);
         return c_int::from(-1);
     }
 
@@ -91,13 +155,31 @@ pub unsafe extern "C" fn encoding_encode<'a>(
         Err(_) => return c_int::from(-1),
     };
 
-    let newbuf = if let Cow::Owned(r) = res {
-        r.as_ptr()
+    eprintln!("Resulting cow: {:?}", cow);
+
+    let newbuf = if let Cow::Owned(ref r) = cow {
+        eprintln!("cow is owned: {}", r);
+        r.as_str().as_ptr()
     } else {
-        s.as_ptr()
+        eprintln!("cow is borrowed: {}", cow.as_ref());
+        cow.as_ptr()
     };
 
-    eprintln!("encoding_encode: copying buffer");
+    eprintln!(
+        "encoding_encode: copying buffer from {:?} to {:?}, size: {}",
+        newbuf, buf, l
+    );
+    unsafe {
+        eprintln!(
+            "newbuf: {:?} {:?} {:?} {:?} {:?} {:?}",
+            *newbuf.offset(0),
+            *newbuf.offset(1),
+            *newbuf.offset(2),
+            *newbuf.offset(3),
+            *newbuf.offset(4),
+            *newbuf.offset(5)
+        )
+    };
     unsafe {
         core::ptr::copy(newbuf, buf as *mut _, l as usize);
         *buf.offset(l) = c_char::from(0);
