@@ -22,8 +22,7 @@ pub struct FFIString {
 
 impl Drop for FFIString {
     fn drop(&mut self) {
-        let s = unsafe { String::from_raw_parts(self.ptr as *mut _, self.len, self.cap) };
-        eprintln!("dropping FFIString {}", &s);
+        let _ = unsafe { String::from_raw_parts(self.ptr as *mut _, self.len, self.cap) };
     }
 }
 
@@ -117,18 +116,15 @@ impl From<FFIString> for String {
         // FFIString will be dropped by first converting it to an
         // owned String so we need to ManuallyDrop it.
         let fs = ManuallyDrop::new(fs);
-        let s = unsafe { String::from_raw_parts(fs.ptr as *mut _, fs.len, fs.cap) };
-        s
+        unsafe { String::from_raw_parts(fs.ptr as *mut _, fs.len, fs.cap) }
     }
 }
 
 #[no_mangle]
 pub extern "C" fn fficow_ptr_len(c: *const FFICow, ptr: *mut *const c_char) -> usize {
     if c.is_null() || ptr.is_null() {
-        eprintln!("fficow_ptr_len: got a NULL c: {:?}, ptr: {:?}", c, ptr);
         return 0;
     }
-    eprintln!("fficow_ptr_len: ptr: {:?}", ptr);
 
     let ffi_cow = unsafe { std::ptr::read::<FFICow>(c) };
     let ffi_cow = ManuallyDrop::new(ffi_cow);
@@ -154,7 +150,6 @@ pub extern "C" fn fficow_free(c: *const FFICow) {
     if c.is_null() {
         return;
     }
-    let ffi_cow = unsafe { std::ptr::read::<FFICow>(c) };
 
-    eprintln!("freeing a cow: {:?}", ffi_cow);
+    let _ = unsafe { std::ptr::read::<FFICow>(c) };
 }
