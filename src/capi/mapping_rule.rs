@@ -24,11 +24,11 @@ pub unsafe extern "C" fn rest_rule_new(
         return core::ptr::null();
     };
 
-    let method = Method::from(&method_s);
+    let method = Method::from(method_s.as_ref());
 
     let rule = match RestRule::new(method, path_n_qs) {
         Ok(rr) => rr,
-        Err(e) => return core::ptr::null(),
+        Err(_) => return core::ptr::null(),
     };
 
     Box::into_raw(Box::new(rule)) as *const _
@@ -57,11 +57,11 @@ pub unsafe extern "C" fn rest_rule_with_path_n_qs(
         None
     };
 
-    let method = Method::from(&method_s);
+    let method = Method::from(method_s.as_ref());
 
     let rule = match RestRule::with_path_n_qs(method, path, qs) {
         Ok(rr) => rr,
-        Err(e) => return core::ptr::null(),
+        Err(_) => return core::ptr::null(),
     };
 
     Box::into_raw(Box::new(rule)) as *const _
@@ -73,7 +73,7 @@ pub unsafe extern "C" fn rest_rule_free(rule: *const RestRule) {
         return;
     }
 
-    let _ = unsafe { Box::<RestRule>::from_raw(rule) };
+    let _ = unsafe { Box::<RestRule>::from_raw(rule as *mut _) };
 }
 
 #[no_mangle]
@@ -100,7 +100,7 @@ pub unsafe extern "C" fn rest_rule_matches(
     let rule = unsafe { std::ptr::read::<RestRule>(rule) };
     let rule = ManuallyDrop::new(rule);
 
-    let method = Method::from(&method_s);
+    let method = Method::from(method_s.as_ref());
 
     if rule.matches(&method, path_qs) {
         c_int::from(1)
@@ -139,9 +139,9 @@ pub unsafe extern "C" fn rest_rule_matches_path_n_qs(
     let rule = unsafe { std::ptr::read::<RestRule>(rule) };
     let rule = ManuallyDrop::new(rule);
 
-    let method = Method::from(&method_s);
+    let method = Method::from(method_s.as_ref());
 
-    if method == rule.method() && rule.matches_path_n_qs(path, qs) {
+    if &method == rule.method() && rule.matches_path_n_qs(path, qs) {
         c_int::from(1)
     } else {
         c_int::from(0)
