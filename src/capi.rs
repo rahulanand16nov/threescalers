@@ -20,11 +20,11 @@ pub unsafe extern "C" fn encoding_encode_s(s: *const c_char, len: usize) -> *con
         return core::ptr::null();
     };
 
-    let cow = encoding::encode(&c_slice);
+    let ffi_cow = FFICow::from(encoding::encode(&c_slice));
 
-    eprintln!("retval ffi_cow {:?}", cow);
+    eprintln!("retval ffi_cow {:?}", ffi_cow);
 
-    Box::into_raw(Box::new(cow)) as *const _
+    Box::into_raw(Box::new(ffi_cow)) as *const _
 }
 
 #[no_mangle]
@@ -105,14 +105,6 @@ pub unsafe extern "C" fn encoding_encode(
     };
 
     eprintln!("Resulting cow: {:?}", cow);
-
-    //let newbuf = if let Cow::Owned(ref r) = cow {
-    //    eprintln!("cow is owned: {}", r);
-    //    r.as_str().as_ptr()
-    //} else {
-    //    eprintln!("cow is borrowed: {}", cow.as_ref());
-    //    cow.as_ptr()
-    //};
 
     let newbuf = cow.as_bytes();
     eprintln!(
