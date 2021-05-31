@@ -1,6 +1,6 @@
-use core::mem::ManuallyDrop;
 use std::prelude::v1::*;
 
+use core::mem::ManuallyDrop;
 use std::os::raw::c_char;
 
 use std::borrow::Cow;
@@ -151,5 +151,5 @@ pub extern "C" fn fficow_free(c: *const FFICow) {
         return;
     }
 
-    let _ = unsafe { std::ptr::read::<FFICow>(c) };
+    let _ = unsafe { Box::<FFICow>::from_raw(c) };
 }
