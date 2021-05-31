@@ -45,7 +45,7 @@ xml-response = ["serde-xml-rs", "serde", "chrono"]
 rest-mappings = ["regex", "lazy_static"]
 rest-mappings-serde = ["serde"]
 # C API
-capi = []
+capi = ["rest-mappings"]
 
 [dependencies]
 percent-encoding = "^2"
