@@ -8,3 +8,4 @@ mod c_slice;
 pub use c_slice::{CSlice, CSliceMut};
 
 pub mod encoding;
+pub mod version;
