@@ -47,6 +47,12 @@ impl FFICow {
     }
 }
 
+impl From<&str> for FFICow {
+    fn from(s: &str) -> Self {
+        Self::Borrowed(s.into())
+    }
+}
+
 impl From<Cow<'_, str>> for FFICow {
     fn from(c: Cow<'_, str>) -> Self {
         if let Cow::Owned(s) = c {
@@ -151,5 +157,5 @@ pub extern "C" fn fficow_free(c: *const FFICow) {
         return;
     }
 
-    let _ = unsafe { Box::<FFICow>::from_raw(c) };
+    let _ = unsafe { Box::<FFICow>::from_raw(c as *mut _) };
 }
