@@ -45,7 +45,7 @@ xml-response = ["serde-xml-rs", "serde", "chrono"]
 rest-mappings = ["regex", "lazy_static"]
 rest-mappings-serde = ["serde"]
 # C API
-capi = ["rest-mappings"]
+capi = []
 
 [dependencies]
 percent-encoding = "^2"
@@ -82,7 +82,6 @@ itertools = "^0.10"
 rand = "^0.8"
 
 [profile.release]
-opt-level = 3
 lto = true
 codegen-units = 1
 
@@ -125,4 +124,4 @@ description = "3scale API client library"
 #versioning = false
 # Add `-Cpanic=abort` to the RUSTFLAGS automatically, it may be useful in case
 # something might panic in the crates used by the library.
-#rustflags = "-Cpanic=abort"
+rustflags = "-C panic=abort -C link-args=-Wl,-Map=libthreescalers.map"
