@@ -258,6 +258,7 @@ mod test {
             let regex = path_regex(pattern)?;
 
             assert!(regex.is_match("/abc$"));
+            assert!(!regex.is_match("/abcd"));
 
             Ok(())
         }
