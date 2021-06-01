@@ -3,6 +3,7 @@ out/usr/lib64/libthreescalers.so:
 
 .PHONY: so-build
 so-build: out/usr/lib64/libthreescalers.so
+	strip -s out/usr/lib64/libthreescalers.so.*.*
 
 .PHONY: so-install
 so-install: out/usr/lib64/libthreescalers.so
