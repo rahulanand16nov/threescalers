@@ -81,6 +81,11 @@ serde_json = "^1.0"
 itertools = "^0.10"
 rand = "^0.8"
 
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+
 [package.metadata.capi.header]
 # Used as header file name. By default this is equal to the crate name.
 # The name can be with or without the header filename extension `.h`
