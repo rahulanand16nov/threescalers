@@ -7,13 +7,17 @@ use crate::Error;
 use std::str::FromStr;
 
 #[repr(transparent)]
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
 pub struct ProviderKey(String);
+
 #[repr(transparent)]
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
 pub struct ServiceToken(String);
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
 pub enum Credentials {
     ProviderKey(ProviderKey),
     ServiceToken(ServiceToken),
@@ -145,7 +149,8 @@ where
 }
 
 #[repr(transparent)]
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct ServiceId(String);
 
 impl AsRef<str> for ServiceId {
